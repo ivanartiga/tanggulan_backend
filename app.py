@@ -44,3 +44,31 @@ def frame_preprocessing(frames):
 def feature_extraction(input_frames):
     output = feature_extractor.predict(input_frames)
     return output
+
+
+# Sending frames to flask server CODE
+
+# cap = cv2.VideoCapture('video.mp4')
+# frames = []
+# i = 0
+# while(cap.isOpened()):
+#     ret, frame = cap.read()
+#     if ret == True:
+#         # Store the frame in a dictionary with a key
+#         key = f'frame_{i}'
+#         frames.append((key, frame))
+#         i += 1
+#     else:
+#         break
+#
+# # Convert the frames to encoded format and store in a dictionary
+# frames_dict = {}
+# for key, frame in frames:
+#     # Convert the numpy array to encoded format
+#     _, buffer = cv2.imencode('.jpg', frame)
+#     encoded_frame = buffer.tobytes()
+#     # Add the encoded frame to the dictionary with the key
+#     frames_dict[key] = encoded_frame
+#
+# # Convert the dictionary to a JSON object and send it to the Flask route
+# frames_json = json.dumps(frames_dict)
