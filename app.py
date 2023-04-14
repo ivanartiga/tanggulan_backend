@@ -1,6 +1,7 @@
 from flask import Flask, Response, request
 from c3d_feature_extractor import getFeatureExtractor
 import logging
+import joblib
 import threading
 import json
 import numpy as np
@@ -8,8 +9,12 @@ import cv2
 
 """Initiate Flask Object and Violence Detector"""
 app = Flask(__name__)
-feature_extractor = getFeatureExtractor("weights/weights.h5", "feature_extractor.h5", "fc6", False)
-# svm loader
+try:
+    feature_extractor = getFeatureExtractor("weights/weights.h5", "feature_extractor.h5", "fc6", False)
+    svm = joblib.load('SVMClassifier.Model')
+except Exception as e:
+    logging.info("Model Initialization Failed")
+
 logging.info("Feature Extraction Model Loaded")
 
 
@@ -17,6 +22,14 @@ logging.info("Feature Extraction Model Loaded")
 def predict():
     # Get the JSON object containing the encoded frames
     frames_json = request.get_json()
+    # initialize a result value 'i' means pass a default interger (0) as an intial value and wait for the thread to finish
+    result = threading.Value('i')
+    thread = threading.Thread(target=prediction_process,args=(frames_json,result))
+    thread.start()
+    thread.join()
+
+
+def prediction_process(frames_json,result):
     # Decode the JSON object and extract the frames
     frames_dict = json.loads(frames_json)
     # frames array to feed into 3D CNN Feature Extractor Model
@@ -31,7 +44,8 @@ def predict():
     # Extract Features from Frames with 16 frame Input
     features = feature_extraction(processed_frames)
     # Feed to SVM
-    # pending
+    result = classify(features)
+    pass
 
 def frame_preprocessing(frames):
     processed_frames = []
@@ -45,6 +59,12 @@ def feature_extraction(input_frames):
     output = feature_extractor.predict(input_frames)
     return output
 
+def classify(input_vectors):
+    y_pred = svm.predict(input_vectors)
+
+
+if __name__ == '__main__':
+    app.run(threaded=True)
 
 # Sending frames to flask server CODE
 
