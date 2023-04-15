@@ -9,7 +9,8 @@ import time
 import sys
 import cv2
 import imutils
-import socket, pickle, struct
+import requests
+import json
 
 class CameraWidget(QWidget):
     """Independent camera feed
@@ -26,7 +27,9 @@ class CameraWidget(QWidget):
 
         # Initialize deque used to store frames read from the stream
         self.deque = deque(maxlen=deque_size)
-
+        # Initialize Frame Array to pass to Violence Detection API
+        self.frameCount = 0;
+        self.frames_dict = {}
         # Slight offset is needed since PyQt layouts have a built in padding
         # So add offset to counter the padding
         self.offset = 16
@@ -113,8 +116,23 @@ class CameraWidget(QWidget):
             return
 
         if self.deque and self.online:
+            # Initialize Array of Frames
             # Grab latest frame
             frame = self.deque[-1]
+            # Send 16 Frames to API to check for Violence
+            if self.frameCount < 16:
+                _, buffer = cv2.imencode('.jpg', frame)
+                encoded_frame = buffer.tobytes()
+                self.frames_dict[self.frameCount] = encoded_frame
+                self.frameCount = self.frameCount+1
+            else:
+                frames_json = json.dumps(self.frames_dict)
+                url = 'http://localhost:5000/predict'
+                content_type = 'application/octet-stream'
+                headers = {'content-type': content_type}
+                response = requests.post(url,data={frames_json},headers=headers)
+                self.frames_dict.clear()
+                self.frameCount=0
 
             # Keep frame aspect ratio
             if self.maintain_aspect_ratio:
@@ -170,12 +188,12 @@ if __name__ == '__main__':
     password = 'Your camera password!'
 
     # Stream links
-    camera0 = 'D:/Acads/Lecture Recordings/2023-02-03 08-42-36.mp4'
-    camera1 = 'D:/Acads/Lecture Recordings/2022-06-10 14-15-01.mp4'
-    camera2 = 'D:/Acads/Lecture Recordings/2023-02-03 08-42-36.mp4'
-    camera3 = 'D:/Acads/Lecture Recordings/2022-05-21 08-19-53.mp4'
-    # camera4 = 'D:/Acads/Lecture Recordings/2022-05-21 08-19-53.mp4'
-    # camera5 = 'D:/Acads/Lecture Recordings/2022-05-21 08-19-53.mp4'
+    camera0 = 0 #'C:/Users/Maria Hazel Dolera/Downloads/rfln9um1rlnm.mp4'
+    camera1 = 'C:/Users/Maria Hazel Dolera/Downloads/4tltnna7ae2i.mp4'
+    camera2 = 'C:/Users/Maria Hazel Dolera/Downloads/94uy4i9u7fer.mp4'
+    camera3 = 'C:/Users/Maria Hazel Dolera/Downloads/rfln9um1rlnm.mp4'
+    camera4 = 'C:/Users/Maria Hazel Dolera/Downloads/rfln9um1rlnm.mp4'
+    camera5 = 'C:/Users/Maria Hazel Dolera/Downloads/rfln9um1rlnm.mp4'
     # camera6 = 'rtsp://{}:{}@192.168.1.46:554/cam/realmonitor?channel=1&subtype=0'.format(username, password)
     # camera7 = 'rtsp://{}:{}@192.168.1.41:554/cam/realmonitor?channel=1&subtype=0'.format(username, password)
 
@@ -197,8 +215,8 @@ if __name__ == '__main__':
     one = CameraWidget(screen_width // 3, screen_height // 3, camera1)
     two = CameraWidget(screen_width // 3, screen_height // 3, camera2)
     three = CameraWidget(screen_width // 3, screen_height // 3, camera3)
-    # four = CameraWidget(screen_width//3, screen_height//3, camera4)
-    # five = CameraWidget(screen_width//3, screen_height//3, camera5)
+    four = CameraWidget(screen_width//3, screen_height//3, camera4)
+    five = CameraWidget(screen_width//3, screen_height//3, camera5)
     # six = CameraWidget(screen_width//3, screen_height//3, camera6)
     # seven = CameraWidget(screen_width//3, screen_height//3, camera7)
 
@@ -208,8 +226,8 @@ if __name__ == '__main__':
     ml.addWidget(one.get_video_frame(), 0, 1, 1, 1)
     ml.addWidget(two.get_video_frame(), 1, 0, 1, 1)
     ml.addWidget(three.get_video_frame(), 1, 1, 1, 1)
-    # ml.addWidget(four.get_video_frame(),1,1,1,1)
-    # ml.addWidget(five.get_video_frame(),1,2,1,1)
+    ml.addWidget(four.get_video_frame(),1,1,1,1)
+    ml.addWidget(five.get_video_frame(),1,2,1,1)
     # ml.addWidget(six.get_video_frame(),2,0,1,1)
     # ml.addWidget(seven.get_video_frame(),2,1,1,1)
 

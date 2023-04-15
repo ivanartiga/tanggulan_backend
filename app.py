@@ -7,17 +7,21 @@ import json
 import numpy as np
 import cv2
 
+
 """Initiate Flask Object and Violence Detector"""
 app = Flask(__name__)
 try:
     feature_extractor = getFeatureExtractor("weights/weights.h5", "feature_extractor.h5", "fc6", False)
     svm = joblib.load('SVMClassifier.Model')
+    print("Model Loaded")
 except Exception as e:
-    logging.info("Model Initialization Failed")
+    print("Model Not Loaded")
 
-logging.info("Feature Extraction Model Loaded")
+labels = ["Violent","Non Violent"]
 
-
+@app.route('/test', methods=['GET'])
+def test():
+    return "Hello User"
 @app.route('/predict', methods=['POST'])
 def predict():
     # Get the JSON object containing the encoded frames
@@ -61,6 +65,7 @@ def feature_extraction(input_frames):
 
 def classify(input_vectors):
     y_pred = svm.predict(input_vectors)
+    return y_pred
 
 
 if __name__ == '__main__':

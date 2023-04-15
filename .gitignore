@@ -1,0 +1,7 @@
+# Default ignored files
+/shelf/
+/workspace.xml
+feature_extractor.h5
+SVMClassifier.Model
+.idea/*
+weights/weights.h5
