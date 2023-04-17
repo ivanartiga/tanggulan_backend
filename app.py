@@ -1,4 +1,4 @@
-from flask import Flask, Response, request
+from flask import Flask, Response, request, jsonify
 from c3d_feature_extractor import getFeatureExtractor
 import logging
 import joblib
@@ -10,12 +10,12 @@ import cv2
 
 """Initiate Flask Object and Violence Detector"""
 app = Flask(__name__)
-try:
-    feature_extractor = getFeatureExtractor("weights/weights.h5", "feature_extractor.h5", "fc6", False)
-    svm = joblib.load('SVMClassifier.Model')
-    print("Model Loaded")
-except Exception as e:
-    print("Model Not Loaded")
+# try:
+feature_extractor = getFeatureExtractor("weights/weights.h5", "feature_extractor.h5", "fc6", False)
+svm = joblib.load('SVMClassifier.Model')
+print("Model Loaded")
+# except Exception as e:
+#     print("Model Not Loaded")
 
 labels = ["Violent","Non Violent"]
 
@@ -24,32 +24,32 @@ def test():
     return "Hello User"
 @app.route('/predict', methods=['POST'])
 def predict():
-    # Get the JSON object containing the encoded frames
-    frames_json = request.get_json()
-    # initialize a result value 'i' means pass a default interger (0) as an intial value and wait for the thread to finish
-    result = threading.Value('i')
-    thread = threading.Thread(target=prediction_process,args=(frames_json,result))
-    thread.start()
-    thread.join()
-
-
-def prediction_process(frames_json,result):
-    # Decode the JSON object and extract the frames
-    frames_dict = json.loads(frames_json)
-    # frames array to feed into 3D CNN Feature Extractor Model
-    frames = []
-    for key in frames_dict:
-        # Convert the encoded frame to a numpy array
-        nparr = np.frombuffer(frames_dict[key], np.uint8)
+    # Retrieve the frames from the JSON payload
+    frames = json.loads(request.form['frames'])
+    processed_frames = []
+    # Loop through the frames and decode them back into OpenCV frames
+    for frame_bytes in frames:
+        nparr = np.frombuffer(frame_bytes, np.uint8)
         frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        frames.append(frame)
+        resized = cv2.resize(frame, (112, 112))
+        processed_frames.append(resized)
+        # Process the frame here
+
+    numpy_array = np.array(processed_frames, dtype=np.float32)
+
+    return 'Frames processed successfully'
+
+
+
+def prediction_process(frames):
     # Preprocess Frames
     processed_frames = frame_preprocessing(frames)
     # Extract Features from Frames with 16 frame Input
     features = feature_extraction(processed_frames)
     # Feed to SVM
     result = classify(features)
-    pass
+    print('The result of the SVM')
+    print(result)
 
 def frame_preprocessing(frames):
     processed_frames = []
@@ -69,7 +69,7 @@ def classify(input_vectors):
 
 
 if __name__ == '__main__':
-    app.run(threaded=True)
+    app.run(debug=True,threaded=True)
 
 # Sending frames to flask server CODE
 

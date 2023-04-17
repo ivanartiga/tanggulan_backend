@@ -11,6 +11,16 @@ import cv2
 import imutils
 import requests
 import json
+import base64
+import threading
+
+
+from c3d_feature_extractor import getFeatureExtractor
+import joblib
+import numpy as np
+
+feature_extractor = None
+svm_classifier = None
 
 class CameraWidget(QWidget):
     """Independent camera feed
@@ -24,12 +34,12 @@ class CameraWidget(QWidget):
 
     def __init__(self, width, height, stream_link=0, aspect_ratio=False, parent=None, deque_size=1):
         super(CameraWidget, self).__init__(parent)
-
         # Initialize deque used to store frames read from the stream
         self.deque = deque(maxlen=deque_size)
         # Initialize Frame Array to pass to Violence Detection API
-        self.frameCount = 0;
-        self.frames_dict = {}
+        self.frames_list = []
+        self.start_time = time.time()
+        self.end_time = self.start_time + 10
         # Slight offset is needed since PyQt layouts have a built in padding
         # So add offset to counter the padding
         self.offset = 16
@@ -81,7 +91,7 @@ class CameraWidget(QWidget):
 
     def get_frame(self):
         """Reads frame, resizes, and converts image to pixmap"""
-
+       # frame_list = [] for passing to model
         while True:
             try:
                 if self.capture.isOpened() and self.online:
@@ -89,6 +99,7 @@ class CameraWidget(QWidget):
                     status, frame = self.capture.read()
                     if status:
                         self.deque.append(frame)
+                      #  frame_list.append(frame) for passing to model
                     else:
                         self.capture.release()
                         self.online = False
@@ -119,21 +130,6 @@ class CameraWidget(QWidget):
             # Initialize Array of Frames
             # Grab latest frame
             frame = self.deque[-1]
-            # Send 16 Frames to API to check for Violence
-            if self.frameCount < 16:
-                _, buffer = cv2.imencode('.jpg', frame)
-                encoded_frame = buffer.tobytes()
-                self.frames_dict[self.frameCount] = encoded_frame
-                self.frameCount = self.frameCount+1
-            else:
-                frames_json = json.dumps(self.frames_dict)
-                url = 'http://localhost:5000/predict'
-                content_type = 'application/octet-stream'
-                headers = {'content-type': content_type}
-                response = requests.post(url,data={frames_json},headers=headers)
-                self.frames_dict.clear()
-                self.frameCount=0
-
             # Keep frame aspect ratio
             if self.maintain_aspect_ratio:
                 self.frame = imutils.resize(frame, width=self.screen_width)
@@ -157,13 +153,30 @@ class CameraWidget(QWidget):
         return self.video_frame
 
 
+    def predict(self,frames):
+
+        pass
+
+
 def exit_application():
     """Exit program event handler"""
 
     sys.exit(1)
 
+def load_models():
+    try:
+        print("Initializing Models")
+        feature_extractor = getFeatureExtractor("weights/weights.h5", "feature_extractor.h5", "fc6", False)
+        svm_classifier = joblib.load('SVMClassifier.Model')
+        print("Model Loaded")
+    except Exception as e:
+        print("Model Not Loaded")
 
 if __name__ == '__main__':
+
+    # Initialize Deep Learning Models
+    initialize_models_thread = Thread(target=load_models, args=())
+    initialize_models_thread.start()
 
     # Create main application window
     app = QApplication([])
@@ -177,7 +190,7 @@ if __name__ == '__main__':
     ml = QGridLayout()
     cw.setLayout(ml)
     mw.setCentralWidget(cw)
-    mw.showMaximized()
+    # mw.showMaximized()
 
     # Dynamically determine screen width/height
     screen_width = QApplication.desktop().screenGeometry().width()
@@ -188,26 +201,17 @@ if __name__ == '__main__':
     password = 'Your camera password!'
 
     # Stream links
-    camera0 = 0 #'C:/Users/Maria Hazel Dolera/Downloads/rfln9um1rlnm.mp4'
-    camera1 = 'C:/Users/Maria Hazel Dolera/Downloads/4tltnna7ae2i.mp4'
-    camera2 = 'C:/Users/Maria Hazel Dolera/Downloads/94uy4i9u7fer.mp4'
-    camera3 = 'C:/Users/Maria Hazel Dolera/Downloads/rfln9um1rlnm.mp4'
-    camera4 = 'C:/Users/Maria Hazel Dolera/Downloads/rfln9um1rlnm.mp4'
-    camera5 = 'C:/Users/Maria Hazel Dolera/Downloads/rfln9um1rlnm.mp4'
+    camera0 = 1 #'D:/Acads/Lecture Recordings/2023-02-03 08-42-36.mp4'
+    camera1 = 'D:/Acads/Lecture Recordings/2023-02-03 08-42-36.mp4'
+    camera2 = 'D:/Acads/Lecture Recordings/2023-02-03 08-42-36.mp4'
+    camera3 = 'D:/Acads/Lecture Recordings/2023-02-03 08-42-36.mp4'
+    camera4 = 'D:/Acads/Lecture Recordings/2023-02-03 08-42-36.mp4'
+    camera5 = 'D:/Acads/Lecture Recordings/2023-02-03 08-42-36.mp4'
     # camera6 = 'rtsp://{}:{}@192.168.1.46:554/cam/realmonitor?channel=1&subtype=0'.format(username, password)
     # camera7 = 'rtsp://{}:{}@192.168.1.41:554/cam/realmonitor?channel=1&subtype=0'.format(username, password)
 
-
-    # Initiating TCP Listener Listening to Port 9999
-    # server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # host_name = socket.gethostname()
-    # host_ip = socket.gethostbyname(host_name)
-    # print('HOST IP:', host_ip)
-    # port = 9999
-    # socket_address = (host_ip, port)
-    # server_socket.bind(socket_address)
-    # server_socket.listen()
-    # print("Listening at", socket_address)
+    # Wait until Models are initialized before Creating Camera Widgets
+    initialize_models_thread.join()
 
     # Create camera widgets
     print('Creating Camera Widgets...')
